@@ -1,0 +1,11 @@
+.venv/
+__MACOSX/
+*.pyc
+__pycache__/
+.DS_Store
+starter_code/part1/results/
+starter_code/part2/results/
+report_template/main.aux
+report_template/main.log
+report_template/main.out
+report_template/main.pdf

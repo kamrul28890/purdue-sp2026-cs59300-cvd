@@ -1,0 +1,2 @@
+video_id,mode,camera_motion,occlusion,blur,low_texture,scale_change,lighting_change,overall_quality,summary,failure_notes
+example_001,online,low,low,low,low,low,low,strong,Stable on simple motion,Use this row format for every custom clip

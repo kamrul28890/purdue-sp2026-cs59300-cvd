@@ -1,0 +1,22 @@
+﻿# Runtime and dependency folders
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+node_modules/
+
+# Nested repository internals from downloaded/cloned source packages
+**/.git/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large/generated archives and cache files
+*.tmp
+*.bak
+*.moved_*

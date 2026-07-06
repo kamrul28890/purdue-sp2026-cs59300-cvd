@@ -1,0 +1,3 @@
+run_id,mode,dataset,checkpoint,occlusion_accuracy,average_jaccard,average_pts_within_thresh,runtime_seconds,notes
+tapvid_davis_first_online,online,TAP-Vid DAVIS,checkpoints/scaled_online.pth,0.9088604772803294,0.6444301091643813,0.771162818724843,62.29804277420044,First successful online DAVIS baseline on RTX 3070
+tapvid_davis_first_offline,offline,TAP-Vid DAVIS,checkpoints/scaled_offline.pth,0.9173205871355311,0.6480599112594341,0.7688051147336501,505.74844765663147,Offline slightly higher average_jaccard but much slower

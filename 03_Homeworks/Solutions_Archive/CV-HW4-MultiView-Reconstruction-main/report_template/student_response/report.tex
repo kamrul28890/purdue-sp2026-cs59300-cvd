@@ -1,0 +1,334 @@
+\renewcommand{\myname}{NAME HERE} %%% PUT YOUR NAME HERE
+
+\renewcommand{\report}{
+\providecommand{\mA}{\mathbf{A}}
+\providecommand{\mD}{\mathbf{D}}
+\providecommand{\mF}{\mathbf{F}}
+\providecommand{\mL}{\mathbf{L}}
+\providecommand{\mM}{\mathbf{M}}
+\providecommand{\mP}{\mathbf{P}}
+\providecommand{\mQ}{\mathbf{Q}}
+\providecommand{\mS}{\mathbf{S}}
+\providecommand{\mT}{\mathbf{T}}
+\providecommand{\mU}{\mathbf{U}}
+\providecommand{\mV}{\mathbf{V}}
+\providecommand{\vf}{\mathbf{f}}
+\providecommand{\vp}{\mathbf{p}}
+\providecommand{\vx}{\mathbf{x}}
+\providecommand{\vX}{\mathbf{X}}
+\providecommand{\vzero}{\mathbf{0}}
+
+\section*{Assignment Scope and Reproducibility}
+This report follows the exact 2.1 and 2.2 structure requested in the assignment. All numbers and figures in this report were generated from the provided starter-code entry points:
+\begin{itemize}
+\item Part 1: \texttt{starter\_code/part1/main.py -i library} and \texttt{-i lab}
+\item Part 2: \texttt{starter\_code/part2/main.py}
+\end{itemize}
+I report the mathematical formulation, implementation pipeline, parameter choices, and observed outputs in the same order as the rubric.
+
+\section*{Part 1: Fundamental Matrix, Camera Calibration, Triangulation}
+
+\subsection*{1.1 Formulation of fundamental matrix estimation}
+For each correspondence pair $\vx_1=[x_1,y_1,1]^\top$ and $\vx_2=[x_2,y_2,1]^\top$, the epipolar constraint is
+\begin{equation}
+\vx_2^\top \mF \vx_1 = 0.
+\end{equation}
+Writing $\vf=\mathrm{vec}(\mF)$ gives a homogeneous linear system $\mA\vf=\vzero$, where each match contributes one row
+\begin{equation}
+\left[
+\begin{array}{cccccc}
+x_2x_1 & x_2y_1 & x_2 & y_2x_1 & y_2y_1 & y_2\\
+ x_1 & y_1 & 1
+\end{array}
+\right].
+\end{equation}
+The estimate is the right singular vector of $\mA$ associated with the smallest singular value. We then enforce the rank-2 constraint by setting the smallest singular value of $\mF$ to zero. This is the standard 8-point algorithm.
+
+\paragraph{Implementation details.}
+The unnormalized estimator uses raw coordinates directly.
+
+The normalized estimator first translates each image's points to zero mean and scales them so the mean distance from the origin is $\sqrt{2}$.
+
+If $\mT_1$ and $\mT_2$ are the normalization transforms, the denormalized matrix is
+\begin{equation}
+\mF = \mT_2^\top \bar{\mF} \mT_1.
+\end{equation}
+The only parameter choice is the normalization convention itself; there is no tunable threshold in the estimator.
+
+\subsection*{1.2 Findings for the fundamental matrix}
+To obtain these results, I first estimated the fundamental matrix with the raw 8-point method, then repeated the solve after normalizing the image points to improve conditioning. I evaluated both fits using the provided point-to-epipolar-line residual metric and used the same scaling convention, $F_{33}=1$, so the two matrices can be compared directly.
+
+All reported matrices are scaled so that $F_{33}=1$.
+
+\paragraph{Library pair.}
+\begin{equation*}
+\mF_{\text{unnorm}} =
+\begin{bmatrix}
+1.3263\times 10^{-6} & -1.3691\times 10^{-5} & 6.8379\times 10^{-4}\\
+2.8863\times 10^{-5} & -2.7015\times 10^{-7} & -4.0970\times 10^{-2}\\
+-5.6323\times 10^{-3} & 3.7335\times 10^{-2} & 1
+\end{bmatrix}
+\end{equation*}
+\begin{equation*}
+\mF_{\text{norm}} =
+\begin{bmatrix}
+1.7109\times 10^{-7} & -3.6467\times 10^{-6} & 5.5180\times 10^{-4}\\
+2.2141\times 10^{-5} & 2.2764\times 10^{-7} & -4.1111\times 10^{-2}\\
+-5.2843\times 10^{-3} & 3.6922\times 10^{-2} & 1
+\end{bmatrix}
+\end{equation*}
+
+\paragraph{Lab pair.}
+\begin{equation*}
+\mF_{\text{unnorm}} =
+\begin{bmatrix}
+-5.3670\times 10^{-7} & 7.8999\times 10^{-6} & -1.8865\times 10^{-3}\\
+8.8396\times 10^{-6} & 1.2154\times 10^{-6} & 1.7242\times 10^{-2}\\
+-9.0786\times 10^{-4} & -2.6436\times 10^{-2} & 1
+\end{bmatrix}
+\end{equation*}
+\begin{equation*}
+\mF_{\text{norm}} =
+\begin{bmatrix}
+-1.1341\times 10^{-6} & 1.5551\times 10^{-5} & -3.8875\times 10^{-3}\\
+1.0753\times 10^{-5} & -2.6466\times 10^{-6} & 3.1268\times 10^{-2}\\
+-2.2756\times 10^{-4} & -4.2976\times 10^{-2} & 1
+\end{bmatrix}
+\end{equation*}
+
+\paragraph{Quantitative result.}
+The point-to-epipolar-line residual MSE from the provided helper is:
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\hline
+Dataset & Unnormalized MSE & Normalized MSE \\
+\hline
+Library & 0.1878 & 0.0603 \\
+Lab & 6.2724 & 0.5511 \\
+\hline
+\end{tabular}
+\caption{Fundamental-matrix residuals. Normalization improves conditioning and significantly reduces error in both image pairs.}
+\label{tab:f_mse}
+\end{table}
+
+\paragraph{Interpretation.}
+The numbers in Table~\ref{tab:f_mse} measure how far the observed matches deviate from the epipolar lines implied by the fitted model. Smaller values mean the estimated $\mF$ explains the image pair better. The normalized fit is therefore not just "better" in a numerical sense; it is the model that is more geometrically consistent with the data.
+
+For the library pair, the residual drops from $0.1878$ to $0.0603$, which means the normalized estimator reduces the mismatch by about a factor of three. That tells us the underlying stereo geometry is already fairly clean, but the raw coordinates still distort the least-squares solve enough to matter. For the lab pair, the reduction is much more dramatic: from $6.2724$ down to $0.5511$. This says the lab data is far more sensitive to scale and translation, so normalization is essential there.
+
+In practical terms, the smaller residual means the epipolar lines line up more tightly with the actual matched points, which is exactly what we want from a fundamental matrix. It also means the model is less likely to be driven by coordinate magnitude instead of actual geometry. The normalized estimator is therefore the better model for both datasets, and especially for the lab pair where conditioning is the main challenge.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\linewidth]{../starter_code/part1/results/library-F_unnorm.png}
+\includegraphics[width=0.48\linewidth]{../starter_code/part1/results/library-F_norm.png}
+\caption{Library epipolar lines. Left: unnormalized fit. Right: normalized fit.}
+\label{fig:library_epi}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\linewidth]{../starter_code/part1/results/lab-F_unnorm.png}
+\includegraphics[width=0.48\linewidth]{../starter_code/part1/results/lab-F_norm.png}
+\caption{Lab epipolar lines. Left: unnormalized fit. Right: normalized fit.}
+\label{fig:lab_epi}
+\end{figure}
+
+\subsection*{1.3 Formulation of camera calibration}
+For each known 3D point $\vX_i=[X_i,Y_i,Z_i,1]^\top$ and observed image point $\vx_i=[x_i,y_i,1]^\top$, the projection model is
+\begin{equation}
+\vx_i \sim \mP \vX_i, \qquad \mP \in \mathbb{R}^{3\times4}.
+\end{equation}
+Using the cross-product form $\vx_i \times (\mP\vX_i)=\vzero$, every correspondence contributes two independent linear equations in the 12 unknown entries of $\mP$. Stacking all correspondences yields $\mA\vp=\vzero$ with $\vp=\mathrm{vec}(\mP)$, and the solution is obtained by SVD. This is the linear DLT calibration model from lecture.
+
+To get the reported values, I assembled the DLT system from the lab correspondences, solved it with SVD, reshaped the result into two projection matrices, and then reprojected the known 3D points to measure pixel-space error. The output matrices are the estimated camera models that best explain the observed image points under a linear projective camera assumption.
+
+\paragraph{Implementation details.}
+I used the standard DLT construction with no nonlinear refinement. This is deliberate: the assignment asks for the projection matrix and reprojection error, and the linear solve is the cleanest way to expose the geometry. The matrix is scaled for display only; the projective model is unchanged by scalar multiplication.
+
+\subsection*{1.4 Findings for camera calibration}
+The calibrated lab projection matrices are
+\begin{equation*}
+\mP_1 =
+\begin{bmatrix}
+-2.3368 & -0.1009 & 0.3255 & 735.37\\
+-0.2329 & -0.4822 & 2.1022 & 154.52\\
+-1.1824\times 10^{-3} & -2.1467\times 10^{-3} & 4.7882\times 10^{-4} & 1
+\end{bmatrix}
+\end{equation*}
+\begin{equation*}
+\mP_2 =
+\begin{bmatrix}
+-2.0505 & 1.1883 & 0.3953 & 244.43\\
+-0.4566 & -0.3011 & 2.1439 & 165.66\\
+-2.2517\times 10^{-3} & -1.0904\times 10^{-3} & 5.7469\times 10^{-4} & 1
+\end{bmatrix}.
+\end{equation*}
+
+The reprojection MSEs on the lab calibration points are
+\begin{equation}
+\text{MSE}_{\text{img1}}=41.2325, \qquad \text{MSE}_{\text{img2}}=9.6051.
+\end{equation}
+These numbers mean that the estimated cameras do not reproduce every pixel exactly, but they do recover a usable projection model. The first image has the larger error, so its recovered camera is less aligned with the measured correspondences than the second one. That usually points to a harder viewpoint, noisier correspondences, or stronger perspective effects in that image.
+
+For this assignment, that is still a valid and informative result: the goal is not perfect pixel matching, but a camera matrix that is geometrically consistent enough to support triangulation. The second matrix is the stronger fit, while the first matrix is the less accurate but still usable model.
+
+\subsection*{1.5 Formulation and findings for triangulation}
+Given two known projection matrices and a correspondence $[x_1,y_1] \leftrightarrow [x_2,y_2]$, triangulation solves
+\begin{equation}
+\vx_1 \times (\mP_1\vX)=\vzero, \qquad \vx_2 \times (\mP_2\vX)=\vzero
+\end{equation}
+for the homogeneous 3D point $\vX$. Each point gives a $4\times4$ homogeneous linear system, solved by SVD and then dehomogenized.
+
+\paragraph{Implementation details.}
+For every correspondence I stack the four cross-product rows, solve for the last right singular vector, divide by the homogeneous scale, and reproject the result to verify consistency. No nonlinear triangulation or bundle adjustment is used because the assignment explicitly asks for the linear least-squares method.
+
+\paragraph{Findings.}
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\hline
+Dataset & 3D MSE & 2D reproj MSE (img1) & 2D reproj MSE (img2) \\
+\hline
+Lab & 0.00766 & 6.2263 & 5.5764 \\
+Library & N/A & 0.01209 & 0.01606 \\
+\hline
+\end{tabular}
+\caption{Triangulation quality metrics. Library 3D ground truth is not provided, so only reprojection error is reported.}
+\label{tab:tri_metrics}
+\end{table}
+
+To get these values, I triangulated each point from the two camera views, converted the homogeneous coordinates back to 3D, and then measured both 3D error and reprojection error. The metric tells us whether the recovered 3D point is close to the ground truth and whether, when sent back through the camera, it lands near the observed image points.
+
+The lab 3D MSE of $0.00766$ is small, which means the reconstructed point cloud is close to the supplied 3D coordinates. The reprojection errors of $6.2263$ and $5.5764$ are larger than the library case, but they are still reasonable given that the lab cameras were themselves estimated from data rather than provided exactly. In plain terms, the 3D shape is good, but the camera fit is not perfect, so the image-space reconstruction inherits some error from calibration.
+
+For the library pair, the reprojection errors are extremely small: $0.01209$ and $0.01606$. That means the triangulated points are almost perfectly consistent with the known camera geometry. This is the ideal case for linear triangulation: accurate cameras, stable correspondences, and a very small geometric mismatch.
+
+\subsection*{1.6 Discussion and limitations for Part 1}
+The Part 1 pipeline is a purely linear geometry pipeline: estimate $\mF$, calibrate $\mP$, triangulate $\vX$, and then measure residuals. In easy words, we are turning two images into a 3D explanation of the scene using only algebraic constraints.
+
+What the outputs mean is straightforward. A lower epipolar residual means the two images agree more closely with a single stereo geometry. A lower calibration reprojection error means the camera matrix maps the known 3D points back into the observed pixels more faithfully. A low triangulation error means the 3D point recovered from two rays is close to the true 3D point.
+
+The main bottleneck is conditioning. The lab pair has only 20 correspondences, so noise and scale have a much larger effect than in the library pair. Another limitation is that every step is linear and local: we do not refine the solution with bundle adjustment or enforce stronger physical camera priors. That is why the lab calibration error is larger even though the triangulated 3D error is still small. A stronger version of this pipeline would add nonlinear refinement, robust outlier rejection, and more correspondences before solving.
+
+Another useful takeaway is that the metrics tell a story about the model itself, not just the implementation. When the normalized fundamental matrix improves a lot, that means the data needed conditioning before the geometry became visible. When triangulation errors stay low but reprojection errors stay higher, that means the 3D structure is being recovered reasonably well but the camera estimates still limit the final fit. So the bottleneck is not one single function; it is the combination of noisy correspondences, linear assumptions, and the absence of later refinement.
+
+\paragraph{Implementation strategy notes.}
+We intentionally kept the code simple and deterministic: SVD for every solve, rank-2 enforcement for $\mF$, fixed $F_{33}=1$ scaling for interpretability, and direct reprojection error computation for evaluation. This keeps the implementation close to lecture theory and makes debugging easier.
+
+\section*{Part 2: Affine Factorization (Tomasi-Kanade)}
+
+\subsection*{2.1 Mathematical formulation of structure and motion estimation}
+The measurement matrix for the hotel sequence has size $2M\times N=202\times215$ and is arranged as
+\begin{equation}
+\mD =
+\begin{bmatrix}
+x_1^{(1)} & \dots & x_N^{(1)}\\
+y_1^{(1)} & \dots & y_N^{(1)}\\
+\vdots & \ddots & \vdots\\
+x_1^{(M)} & \dots & x_N^{(M)}\\
+y_1^{(M)} & \dots & y_N^{(M)}
+\end{bmatrix}.
+\end{equation}
+Under affine projection, the centered measurement matrix has rank 3 and factors as
+\begin{equation}
+\tilde{\mD} \approx \mM\mS,
+\end{equation}
+where $\mM$ is the motion matrix and $\mS$ is the structure matrix. The first implementation step is to subtract the centroid of every frame, because translation must be removed before low-rank factorization.
+
+\paragraph{Implementation details.}
+I compute the centroid for each frame from the $x$ and $y$ rows separately, subtract it from the whole frame block, and preserve those centroids so the original coordinates can be restored later for visualization and error computation.
+
+In other words, I turn the raw tracks into a centered measurement matrix whose dominant rank-3 part captures the actual shape and motion rather than the camera translation. That is the data representation the rest of the factorization step works on.
+
+\subsection*{2.2 Findings for structure and motion estimation}
+Using the rank-3 SVD split,
+\begin{equation}
+\tilde{\mD} = \mU\Sigma\mV^\top, \qquad
+\mM = \mU_3\Sigma_3^{1/2}, \qquad
+\mS = \Sigma_3^{1/2}\mV_3^\top.
+\end{equation}
+This symmetric split keeps the product unchanged and makes the next metric-upgrade stage numerically stable.
+
+The affine ambiguity is resolved using $\mL=\mQ\mQ^\top$ and the orthonormality constraints on each frame's motion rows:
+\begin{equation}
+\vm_x^\top\mL\vm_x=1, \qquad
+\vm_y^\top\mL\vm_y=1, \qquad
+\vm_x^\top\mL\vm_y=0.
+\end{equation}
+The six unique entries of $\mL$ are estimated by least squares.
+Then $\mQ$ is recovered by eigen-decomposition with a small eigenvalue floor for stability.
+
+\paragraph{Findings.}
+The recovered structure before and after metric upgrade is shown in \figref{fig:before_q} and \figref{fig:after_q}. The pre-upgrade cloud is visibly sheared, while the post-upgrade cloud is much more coherent from all three viewpoints.
+
+What this means is that the raw SVD factorization gives a mathematically valid low-rank explanation, but not yet the physically meaningful one. The metric upgrade removes the affine ambiguity, so the final structure is the version that can be interpreted as a consistent 3D shape under the affine camera model. In practical terms, the second set of plots is the one that tells us what the scene actually looks like, while the first set mostly tells us that the factorization rank is correct.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S1-1.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S1-2.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S1-3.png}
+\caption{Structure before metric upgrade.}
+\label{fig:before_q}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S2-1.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S2-2.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/S2-3.png}
+\caption{Structure after metric upgrade.}
+\label{fig:after_q}
+\end{figure}
+
+\paragraph{Framewise error behavior.}
+The required keypoint comparison figures and error curve are shown in \figref{fig:keypoint_compare} and \figref{fig:mse_plot}. The numerical summary is
+\begin{equation}
+\text{MSE}_{\min}=0.5042, \qquad
+\text{MSE}_{\max}=3.7795, \qquad
+\text{MSE}_{\text{mean}}=1.3163,
+\end{equation}
+with selected frames
+\begin{equation}
+\text{MSE}_{1}=3.7795, \qquad
+\text{MSE}_{51}=0.6229, \qquad
+\text{MSE}_{101}=2.2850.
+\end{equation}
+The error curve is U-shaped: the middle frames are best, while the sequence boundaries are harder because the affine approximation is less accurate there. In easy words, the hotel sequence is reconstructed most reliably when the object motion looks most like a weak-perspective camera; the ends of the sequence stretch that approximation more.
+
+The framewise numbers tell us where the model is strong and where it breaks down. The minimum MSE of $0.5042$ shows that some frames fit the recovered factorization very well. The maximum of $3.7795$ tells us that the worst frames still have a noticeable mismatch, so the affine model is not equally good everywhere in the sequence. The mean of $1.3163$ is the overall quality summary: on average, the reconstruction is decent, but not perfect.
+
+The specific frames reinforce that story. Frame 51 has the lowest selected error at $0.6229$, so it is one of the best examples of the model matching the observed keypoints. Frames 1 and 101 are worse, at $3.7795$ and $2.2850$, which suggests those parts of the video contain more motion, viewpoint change, or projection effects that the affine assumption cannot capture as cleanly. So the numbers are not just scores; they show that the reconstruction quality varies across the sequence.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/k00000001.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/k00000051.png}
+\includegraphics[width=0.31\linewidth]{../starter_code/part2/results/k00000101.png}
+\caption{Observed versus projected keypoints for frames 1, 51, and 101.}
+\label{fig:keypoint_compare}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.72\linewidth]{../starter_code/part2/results/mse.png}
+\caption{Frame-wise reprojection MSE for the full hotel sequence.}
+\label{fig:mse_plot}
+\end{figure}
+
+\subsection*{2.3 Discussion and limitations for Part 2}
+The Part 2 pipeline takes the 2D tracks and discovers a low-rank 3D explanation of them. First we remove translation, then we factor the centered measurement matrix, and finally we remove the affine ambiguity using metric constraints. In plain language, the algorithm says: if the same tracked points across many frames can be explained by just three latent degrees of freedom, then we can recover a 3D shape and a per-frame motion.
+
+The plots show two important things. The structure plot before metric upgrade is distorted, which is expected because the raw SVD factorization is ambiguous up to an arbitrary affine transform. After applying $\mQ$, the shape becomes more coherent and physically interpretable. The MSE curve tells us where the model fits best: the center frames are easier because the sequence there behaves closer to a stable affine camera, while the early/late frames violate the approximation more strongly.
+
+Limitations are mostly geometric, not numerical. The method assumes affine projection and does not model perspective effects, so it cannot fully explain the sequence when the camera motion departs from that assumption. It is also sensitive to track noise and missing/unstable point trajectories. A more advanced version would use robust factorization, handle missing data explicitly, and optionally refine the recovered structure with nonlinear optimization.
+
+\paragraph{Implementation strategy notes.}
+We used the standard Tomasi-Kanade recipe: centroid subtraction, rank-3 SVD, least-squares solve for $\mL$, and eigen-decomposition with clamping. This keeps the code aligned with the lecture derivation and avoids overfitting the data with extra heuristics.
+
+\section*{Conclusion}
+The implemented pipeline follows the assignment rubric exactly: epipolar geometry, calibration, triangulation, and affine factorization all use the standard linear formulations from lecture. The normalized fundamental-matrix estimator is the strongest improvement over the raw formulation, calibration and triangulation produce consistent multi-view geometry on the lab pair, and the Tomasi-Kanade factorization gives a coherent structure after metric upgrade with errors that match the expected sequence-dependent trend.
+
+}
